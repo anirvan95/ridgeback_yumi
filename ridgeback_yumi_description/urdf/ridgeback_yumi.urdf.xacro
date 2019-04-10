@@ -44,15 +44,21 @@
   </xacro:yumi_servo_gripper>
 
 
-
-
-
   <xacro:property name="pedestal_height" value="0.28" />
   <xacro:property name="pedestal_offset_x" value="0.32" />
   <xacro:property name="yumi_offset_x" value="0.06" />
   <xacro:property name="yumi_height" value="0.25" />
-  <xacro:property name="kinect_zrotation_fix" value="${- PI / 2.0}" />
-  <xacro:property name="kinect_base_pitch" value="${ -PI/2.0 }" />
+  <!-- Constants for Intel d435 mount dimensions -->
+  <!-- Constants for robot dimensions -->
+  <xacro:property name="mass" value="0.5" /> <!-- arbitrary value for mass -->
+  <xacro:property name="width" value="0.065" /> <!-- Radius of the camera mount -->
+  <xacro:property name="height" value="0.4" /> <!--Height of the camera mount -->
+  <xacro:property name="camera_length" value="0.09" /> <!-- Size of square 'camera' box -->
+  <xacro:property name="camera_width" value="0.025" /> <!-- Space btw top of beam and the each joint -->
+  <xacro:property name="angle_diff" value="${pi/3}" /> <!-- Space btw top of beam and the each joint -->
+  <xacro:property name="angle_tilt_1" value="${pi/6}" /> <!-- Space btw top of beam and the each joint -->
+  <xacro:property name="angle_tilt_2" value="${pi/36}" /> <!-- Space btw top of beam and the each joint -->
+  <xacro:property name="angle_tilt_3" value="${pi/36}" /> <!-- Space btw top of beam and the each joint -->
 
   <joint name="ridgeback_base_to_pedestal" type="fixed">
     <origin rpy="0 0 ${PI}" xyz="${pedestal_offset_x} 0 ${pedestal_height}" />
@@ -85,71 +91,156 @@
   </joint>
 
 
-  <link name="kinect2">
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+  <xacro:include filename="$(find multi_d435_description)/urdf/multi_d435.gazebo" />
+  
+  <joint name="yumi_to_mount" type="fixed">
+    <parent link="yumi_base_link" />
+    <child link="multi_d435_mount" />
+    <origin rpy="0 0 0" xyz="-0.05 0 0.4" />
+  </joint>
+
+
+  <!-- Camera mount Link -->
+  <link name="multi_d435_mount">
+    <collision>
+      <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
       <geometry>
-        <mesh scale="0.001 0.001 0.001" filename="package://yumi_description/meshes/accesories/KinectXboxOne.stl"/>
+         <cylinder radius="${width}" length="${height}"/>
       </geometry>
-      <material name="Black" />
+    </collision>
+
+   <visual>
+      <origin xyz="0 0 0" rpy="0 0 ${pi/6}"/>
+      <geometry>
+	       <mesh scale= "0.007 0.007 0.01" filename="package://multi_d435_description/meshes/d435_mount.dae"/>
+      </geometry>
     </visual>
+
+    <inertial>
+      <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia
+	  ixx="${mass / 12.0 * (width*width + height*height)}" ixy="0.0" ixz="0.0"
+	  iyy="${mass / 12.0 * (height*height + width*width)}" iyz="0.0"
+	  izz="${mass / 12.0 * (width*width + width*width)}"/>
+    </inertial>
   </link>
 
-  <link name="left_kinect_base">
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <box size="0.4 0.02 0.02" />
-        </geometry>
-        <material name="Grey" />
-      </visual>
-  </link>
-
-
-  <link name="right_kinect_base">
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <box size="0.4 0.02 0.02" />
-        </geometry>
-        <material name="Grey" />
-      </visual>
-  </link>
-
-  <link name="middle_kinect_base">
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <box size="0.4 0.02 0.02" />
-        </geometry>
-        <material name="Grey" />
-      </visual>
-  </link>
-
-   <joint name="kinect2_to_right_kinect_base" type="fixed">
-    <parent link="yumi_base_link" />
-    <child link="right_kinect_base" />
-    <origin rpy="0 ${-PI/2} 0.17" xyz="-0.1 -0.03 0.56" />
+  <joint name="camera_joint_1" type="fixed">
+    <origin xyz="${width+camera_width} 0 ${height-camera_length}" rpy="0 ${angle_tilt_1} 0"/>
+    <parent link="multi_d435_mount"/>
+    <child link="camera_link_1"/>
   </joint>
 
-  <joint name="kinect2_to_left_kinect_base" type="fixed">
-    <parent link="yumi_base_link" />
-    <child link="left_kinect_base" />
-    <origin rpy="0 ${-PI/2} -0.17" xyz="-0.1 0.03 0.56" />
+  <joint name="camera_joint_2" type="fixed">
+    <origin xyz="${(width+camera_width)*cos(angle_diff)} ${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="0 ${angle_tilt_2} ${angle_diff}"/>
+    <parent link="multi_d435_mount"/>
+    <child link="camera_link_2"/>
   </joint>
 
-  <joint name="yumi_to_middle_kinect_base" type="fixed">
-    <parent link="yumi_base_link" />
-    <child link="middle_kinect_base" />
-    <origin rpy="0 ${kinect_base_pitch} 0" xyz="-0.1 0 0.56" />
-  </joint>
-
-  <joint name="middle_kinect_base_to_kinect2" type="fixed">
-    <parent link="middle_kinect_base" />
-    <child link="kinect2" />
-    <origin rpy="${-PI/2} 0 ${kinect_zrotation_fix}" xyz="0.25 0 0" />
+  <joint name="camera_joint_3" type="fixed">
+    <origin xyz="${(width+camera_width)*cos(angle_diff)} -${(width+camera_width)*sin(angle_diff)} ${height-camera_length}" rpy="0 ${angle_tilt_3} -${angle_diff}"/>
+    <parent link="multi_d435_mount"/>
+    <child link="camera_link_3"/>
   </joint>
 
 
+  <!-- Camera 1-->
+  <link name="camera_link_1">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2} ${pi/2} ${pi/2}"/>
+      <geometry>
+	       <mesh filename="package://multi_d435_description/meshes/d435.dae"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <inertial>
+      <mass value="0.0615752" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+    </inertial>
+  </link>
+
+  <!-- Camera 2-->
+  <link name="camera_link_2">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2} ${pi/2} ${pi/2}"/>
+      <geometry>
+	       <mesh filename="package://multi_d435_description/meshes/d435.dae"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <inertial>
+      <mass value="0.0615752" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+    </inertial>
+  </link>
+
+  <!-- Camera 3-->
+  <link name="camera_link_3">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+	       <box size="${camera_length} ${camera_width} ${camera_width}"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2} ${pi/2} ${pi/2}"/>
+      <geometry>
+	       <mesh filename="package://multi_d435_description/meshes/d435.dae"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <inertial>
+      <mass value="0.0615752" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.108e-05" ixy="0" ixz="0" iyy="2.51e-06" iyz="0" izz="8.931e-05" />
+    </inertial>
+  </link>
+
+  <joint name="camera_optical_joint_1" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera_link_1"/>
+    <child link="camera_link_optical_1"/>
+  </joint>
+
+  <link name="camera_link_optical_1">
+  </link>
+
+  <joint name="camera_optical_joint_2" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera_link_2"/>
+    <child link="camera_link_optical_2"/>
+  </joint>
+
+  <link name="camera_link_optical_2">
+  </link>
+
+  <joint name="camera_optical_joint_3" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera_link_3"/>
+    <child link="camera_link_optical_3"/>
+  </joint>
+
+  <link name="camera_link_optical_3">
+  </link>
 
 </robot>
